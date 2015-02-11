@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+
+    <title>Lecture 09 &mdash; Data Engineering &mdash; Spring 2015</title>
+
+    <meta name="description" content="Lecture 09 for Ken Anderson's Spring 2015 Seminar on Data Engineering">
+    <meta name="author" content="Ken Anderson">
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/black.css" id="theme">
+
+    <!-- Code syntax highlighting -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
+
+    <!-- Printing and PDF exports -->
+    <script>
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+    </script>
+
+    <!--[if lt IE 9]>
+    <script src="lib/js/html5shiv.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="reveal">
+
+      <!-- Any section element inside of this container is displayed as a slide -->
+      <div class="slides">
+
+        <section>
+          <h2>Getting Data From Twitter</h2>
+          <h4>Lecture 09 &mdash; Data Engineering &mdash; Spring 2015</h4>
+          <p>February 10, 2015</p>
+        </section>
+
+        <section>
+          <h2>But First...</h2>
+          <ul>
+            <li>My First Gist</li>
+            <li>Contacts Web App (now with RequireJS!)</li>
+            <li>Javascript IIFEs</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2><a href="https://gist.github.com/kenbod/be0c9ce0a79bcd342465">My First Gist</a></h2>
+          <ul>
+            <li>Understanding Javascript's <strong>this</strong> variable</li>
+            <li>When I presented my AngularJS app last week, I received a question about this code</li>
+          </ul>
+          <pre><code data-trim contenteditable>
+var self = this;
+self.data = "Interesting!";
+self.update = function() {
+  self.data = "Even More Interesting!";
+}
+          </code></pre>
+          <ul>
+            <li>In AngularJS, you can assign variables and methods to <strong>this</strong> in a controller to make them available to the DOM.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The Problem with this</h2>
+          <ul>
+            <li>But, working with <strong>this</strong> in Javascript can be tricky.</li>
+            <li><strong>this</strong> is automatically defined by the Javascript Runtime</li>
+            <li>It always points at the <em>execution context</em> of the currently executing function.</li>
+            <li>The trick, as I explain in the <a href="https://gist.github.com/kenbod/be0c9ce0a79bcd342465">Gist</a>, is that the value of <strong>this</strong> is determined by <em>how you call the function</em>. (!!)</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Four Ways of Setting This</h2>
+          <ul>
+            <li>Default Binding: <code>foo();</code></li>
+            <li>Implicit Binding: <code>obj.foo();</code></li>
+            <li>Explicit Binding: <code>foo.call(obj);</code></li>
+            <li>Constructor: <code>new Foo();</code></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Back to the AngularJS Example</h2>
+          <ul>
+            <li>In Angular, when we set-up a Controller
+              <ul>
+                <li>we are (most likely) in a Constructor context</li>
+                <li><strong>this</strong> points at the newly created Controller</li>
+              </ul>
+            </li>
+            <li>But, when we call a Controller's method
+              <ul>
+                <li>there's no guarantee the method was invoked with implict binding</li>
+                <li>Rather than: <code>controller.foo();</code></li>
+                <li>We might have:
+                  <pre><code data-trim contenteditable>
+var foo = controller.foo;
+var bar = &lt;some other object&gt;;
+foo.call(bar); // Boom! this now points at bar.
+                  </code></pre>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2><a href="https://github.com/cu-data-engineering-s15/contacts_web_app">Contacts Web App</a><h2>
+          <h3>Now with RequireJS!</h3>
+          <ul>
+            <li>I was unhappy with the way I had structured my example web app
+              <ul>
+                <li>All controllers in one file</li>
+                <li>Route definitions mixed in with module creation</li>
+                <li>Incomplete understanding of resolves and services</li>
+              </ul>
+            </li>
+            <li>I spent some time cleaning up the app.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Credit Where Credit is Due</h2>
+          <ul>
+            <li>What I did was inspired by this article:
+              <ul>
+                <li><a href="http://solutionoptimist.com/2013/09/30/requirejs-angularjs-dependency-injection/">Dependency Injection using RequireJS & AngularJS</a> by Thomas Burleson</li>
+              </ul>
+            </li>
+            <li>He has done a lot on this topic and AngularJS!
+              <ul>
+                <li><a href="http://slides.com/thomasburleson/using-requirejs-with-angularjs/fullscreen#/">AngularJS with RequireJS</a></li>
+                <li><a href="https://github.com/ThomasBurleson/angularjs-Quizzler">The AngularJS Challenge: Create an Online Quiz Builder &amp; Testing Application</a></li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The Problem being attacked by RequireJS</h2>
+          <ul>
+            <li>In HTML5, &lt;script&gt; tags are synchronous; the file and/or script gets loaded/executed when it is encountered</li>
+            <li>If you use lots of Javascript libraries that can slow down your website while the client downloads all the code.</li>
+            <li>In addition, it is a pain to manage all the files that can be created if you properly modularize your code.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>The Basic Idea of RequireJS</h2>
+          <ul>
+            <li>Load a single Javascript file in your <strong>index.html</strong> file: RequireJS</li>
+            <li>Point RequireJS at one additional Javascript file (traditionally called <strong>main.js</strong>)
+              <ul>
+                <li><strong>main.js</strong> specifies configuration information</li>
+                <li>It also kicks off the loading of your app-specific code</li>
+              </ul>
+            </li>
+            <li>All files loaded by RequireJS are loaded in parallel
+              <ul>
+                <li>Files are then executed in order of dependencies</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Applied to the Web App</h2>
+          <ul>
+            <li>Let's take a brief look at some of the updated code</li>
+            <li>Each controller is in its own file and all stored in their own separate module.</li>
+            <li>I combined my two services into one service.</li>
+            <li>Routes have been moved to a separate file.</li>
+            <li>The primary module is created in <strong>app.js</strong>; it now depends on the new controllers module as well as ngRoute (as before).</li>
+            <li>The code is MUCH cleaner.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>IIFEs (1)</h2>
+          <ul>
+            <li>The code in the new app, now follows a common convention in Javascript, known as the module pattern.</li>
+          </ul>
+          <pre><code data-trim contenteditable>
+(function( define ) {
+  "use strict";
+
+  define(['angular'], function (angular) {
+
+    var AccountsController = function(Repository) {
+      this.accounts = Repository.accounts;
+    };
+
+    return [ 'Repository', AccountsController ];
+
+  });
+
+} (define));
+          </code></pre>
+          <ul>
+            <li>This is also known as the <em>immediately invoked function expression</em> (IIFE).</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>IIFEs (2)</h2>
+          <ul>
+            <li>Let's break this down</li>
+          </ul>
+          <pre><code data-trim contenteditable>
+(function( param ) {
+  &lt;function body&gt;
+} (actual));
+          </code></pre>
+          <ul>
+            <li>We are defining a function that take a single parameter.</li>
+            <li>We are immediately calling that function with the value stored in a global variable called <strong>actual</strong>.</li>
+            <li>This particular instance is good if you want something to execute and not affect the global name space.
+              <ul>
+                <li>Functions create scope in Javascript (not blocks)</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>IIFEs (3)</h2>
+          <ul>
+            <li>IIFEs are more useful when they return something</li>
+          </ul>
+          <pre><code data-trim contenteditable>
+var global = (function() {
+  // private properties
+  // private methods
+  return {
+    // public properties
+    // public methods
+  }
+} ());
+          </code></pre>
+          <ul>
+            <li>This construction returns an object
+              <ul>
+                <li>That object exposes a public API of methods/properties</li>
+              </ul>
+            </li>
+            <li>But, that object was created in the context of the private methods/properties and so has access to them via a closure</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>IIFEs (4)</h2>
+          <ul>
+            <li>Let's look at an <a href="https://gist.github.com/kenbod/5ad7e6d50595074b89c5">example</a></li>
+          </ul>
+          <pre><code data-trim contenteditable>
+var account = (function(account_name) {
+  var number_of_logins = 0;
+  var profile_name = "";
+  var login = account_name;
+  return {
+    login    : function() { return login; },
+    name     : function() { return profile_name; },
+    setName  : function(name) { profile_name = name; },
+    increment: function() { number_of_logins++; },
+    count    : function() { return number_of_logins; }
+  }
+} ("admin"));
+          </code></pre>
+          <ul>
+            <li>What's nice is that the only variable in the global space is <strong>account</strong>.</li>
+            <li>Every other property and method is hidden inside of the object that was returned by the IIFE.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Getting Data From Twitter (Part One)</h2>
+          <ul>
+            <li>Let's lay the foundation for getting data from Twitter</li>
+            <li>We'll explore additional details on Thursday<p>&nbsp;</p></li>
+            <li>The first thing we need to do is to create an account on Twitter
+              <ul>
+                <li>I created <strong>data_at_cu</strong> for this class.</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Twitter's Website for Developers</h2>
+          <ul>
+            <li>Next: head over to Twitter's Developer Website
+              <ul>
+                <li><a href="https://dev.twitter.com/">https://dev.twitter.com/</a></li>
+              </ul>
+            </li>
+            <li>At the bottom of the page, look for:
+              <ul><li>Manage Your Apps</li></ul>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <p><img width="1018" height="1197" src="images/manage_your_apps.png"></p>
+        </section>
+
+        <section>
+          <h2>Creating an App</h2>
+          <ul>
+            <li>If you have never created a Twitter app before, you'll see:</li>
+          </ul>
+          <p><img width="1018" height="308" src="images/create_an_app.png"></p>
+          <ul>
+            <li>Click &ldquo;Create New App&rdquo;</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Fill out the Form</h2>
+          <ul>
+            <li>For the Name, choose something like &ldquo;Ken's Data Miner&rdquo;</li>
+            <li>For the Description, say something like &ldquo;To learn how to use Twitter's APIs&rdquo;</li>
+            <li>For the website, point at your Github website for now.</li>
+            <li>Leave the Callback URL blank.</li>
+            <li>Note: For a new account, you need to confirm it and add your mobile phone number before you can create an app.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Find Your Keys</h2>
+          <ul>
+            <li>What you need to start accessing the API is your keys</li>
+            <li>On your application page, click on Keys and Access Tokens</li>
+            <li>The UI evolves over time but you want to achieve the following things
+              <ul>
+                <li>Consumer Key and your Consumer Secret</li>
+                <li>Access Level: <strong>Read and Write</strong></li>
+                <li>Generate an access token</li>
+                <li>Once generated: Access Token and Access Token Secret</li>
+                <li>Access token should also have <strong>Read and Write</strong> access.</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Stay Tuned</h2>
+          <p>Coming Up Next...</p>
+          <p>We'll use these four keys to access the Streaming API.</p>
+        </section>
+      </div>
+
+    </div>
+
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+
+    <script>
+
+      // Full list of configuration options available at:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+
+        transition: 'slide', // none/fade/slide/convex/concave/zoom
+
+        // Optional reveal.js plugins
+        dependencies: [
+          { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: 'plugin/highlight/highlight.js', async: true, condition: function() { return !!document.querySelector( 'pre code' ); }, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: 'plugin/zoom-js/zoom.js', async: true },
+          { src: 'plugin/notes/notes.js', async: true }
+        ]
+      });
+
+    </script>
+
+  </body>
+</html>
